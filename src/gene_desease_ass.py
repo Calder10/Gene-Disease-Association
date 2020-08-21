@@ -6,9 +6,12 @@ Elaborazione Dati - Modulo Big Data Management
 Salvatore Calderaro 0704378
 GENE-DESEASE ASSOCIATION ANALYZING SCIENTIFIC LITERATURE
 """
+
+
 # Importo le librerie
 from os import  system
 from pyspark.sql import SparkSession
+spark = SparkSession.builder.appName('gene_desease_association').getOrCreate()
 from Bio import Entrez
 Entrez.email="salvatorecalderaro01@community.unipa.it"
 
@@ -31,18 +34,29 @@ def find_papers(gene_id):
     """
     paper_id=paper_id[:100]
     c=1
+    papers_list=[]
     for id_paper  in  paper_id:
         pubmed_entry = Entrez.efetch(db="pubmed", id=id_paper, retmode="xml")
         ris  = Entrez.read(pubmed_entry)
         article = ris['PubmedArticle'][0]['MedlineCitation']['Article']
+        title=str(article['ArticleTitle'])
+        """
         print("Articolo %d"%(c))
         print("Titolo:")
         print(article['ArticleTitle'])
+        """
         if ('Abstract' in article):
+            abstract=article['Abstract']['AbstractText']
+            a=str(abstract[0])
+            """
             print("Abstract:")
             print(article['Abstract']['AbstractText'])
+            """
         c=c+1
-        print("--------------------------------------------------------------------------")
+        r=(title,a)
+        papers_list.append(r)
+        #print("--------------------------------------------------------------------------")
+    return papers_list
 
 """
 Funzione che controlla se l'ID di un gene esiste e in caso positvo
@@ -90,8 +104,6 @@ def check_gene(gene_id):
 """
 Funzione che permetta all'utente di inserire da tastiera l'ID del gene
 di cui devono essere trovate le malattie associate.
-L'utente può anche inserire il nome del gene e il sistema si occupera
-di andare a ricavare l'ID associato per potere effettuare la query.
 """
 
 def init_data():
@@ -105,6 +117,17 @@ def init_data():
             print("L'ID %s non corrisponde ad alcun gene. Riprova!" %(gene_id))
     return gene_id
 
+
+"""
+Funzione che presa in input una lista di tuple contenente
+titolo ed abstract degli articoli li memorizza in un struttura
+dati di tipo DataFrame
+"""
+def create_spark_dataframe(papers):
+    df_papers=spark.createDataFrame(papers,['Title','Abstract'])
+    df_papers.show(20)
+    return df_papers
+
 gene_id=init_data()
-print("Stampo i titoli dei papers inerenti questo gene")
-find_papers(gene_id)
+papers_list=find_papers(gene_id)
+paper_df=create_spark_dataframe(papers_list)
