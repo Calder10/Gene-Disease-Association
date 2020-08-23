@@ -21,7 +21,7 @@ Entrez.email="salvatorecalderaro01@community.unipa.it"
 """
 Funzione che dato in input il nome del gene o il suo ID effettua una query
 su Pubmed e restituisce Titolo e Abstract
-dei primi 100 articoli scientifici trovat.
+dei primi 100 articoli scientifici trovati.
 """
 
 def find_papers(gene_id):
