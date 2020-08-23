@@ -4,22 +4,24 @@ Corso di Laurea Magistrale in Informatica
 Anno Accademico 2019/2020
 Elaborazione Dati - Modulo Big Data Management
 Salvatore Calderaro 0704378
+Email: salvatorecalderaro01@community.unipa.it
 GENE-DESEASE ASSOCIATION ANALYZING SCIENTIFIC LITERATURE
 """
 
 
 # Importo le librerie
 from os import  system
+import csv
 from pyspark.sql import SparkSession
 spark = SparkSession.builder.appName('gene_desease_association').getOrCreate()
 from Bio import Entrez
+import pandas as pd
 Entrez.email="salvatorecalderaro01@community.unipa.it"
 
 """
 Funzione che dato in input il nome del gene o il suo ID effettua una query
-su Pubmed e restituisce Titolo e Abstract (o eventuali parti
-salienti dell'articolo qualora fosse disponibile)
-dei primi 20 articoli scientifici più rilevanti.
+su Pubmed e restituisce Titolo e Abstract
+dei primi 100 articoli scientifici trovat.
 """
 
 def find_papers(gene_id):
@@ -48,10 +50,10 @@ def find_papers(gene_id):
         if ('Abstract' in article):
             abstract=article['Abstract']['AbstractText']
             a=str(abstract[0])
-            """
-            print("Abstract:")
-            print(article['Abstract']['AbstractText'])
-            """
+
+            #print("Abstract:")
+            #print(article['Abstract']['AbstractText'])
+
         c=c+1
         r=(title,a)
         papers_list.append(r)
@@ -121,13 +123,36 @@ def init_data():
 """
 Funzione che presa in input una lista di tuple contenente
 titolo ed abstract degli articoli li memorizza in un struttura
-dati di tipo DataFrame
+dati di tipo DataFrame.
 """
 def create_spark_dataframe(papers):
     df_papers=spark.createDataFrame(papers,['Title','Abstract'])
     df_papers.show(20)
     return df_papers
 
+
+"""
+Funzione che preso in input l'ID del gene estare le associazioni
+gia note, fra quest'ultimo e le relative malattie dal database DisGenNet.
+La funzione verrà utilizzata per verificare il grado di
+confidenza dei risultati che restituirà in output il modello.
+"""
+def create_gene_desease_ass_from_DisGenNET(gene_id):
+    f=open("data/all_gene_disease_associations.tsv")
+    tsv_file=csv.reader(f,delimiter="\t")
+    gene_des_ass=[]
+    for row in tsv_file:
+        x=(row[0].strip(' \t\n\r'))
+        if(gene_id == x):
+            t=str(row[0])
+            t=(x,str(row[5]).strip(' \t\n\r'))
+            gene_des_ass.append(t)
+    df_ass=spark.createDataFrame(gene_des_ass,['ID Gene','Desease Name'])
+    df_ass.show()
+    return df_ass
+
+
 gene_id=init_data()
 papers_list=find_papers(gene_id)
 paper_df=create_spark_dataframe(papers_list)
+ass_df=create_gene_desease_ass_from_DisGenNET(gene_id)
