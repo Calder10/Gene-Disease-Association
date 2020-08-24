@@ -14,8 +14,14 @@ from os import  system
 import csv
 from pyspark.sql import SparkSession
 spark = SparkSession.builder.appName('gene_desease_association').getOrCreate()
+import nltk
 from Bio import Entrez
 import pandas as pd
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+from nltk.tokenize import RegexpTokenizer
+nltk.download("vader_lexicon")
+from nltk.sentiment.vader import SentimentIntensityAnalyzer as SA
 Entrez.email="salvatorecalderaro01@community.unipa.it"
 
 """
@@ -34,7 +40,7 @@ def find_papers(gene_id):
     Controllare se è possibile selezionare gli articoli più rilevanti e con il
     maggior numero di citazioni.
     """
-    paper_id=paper_id[:100]
+    paper_id=paper_id[:200]
     c=1
     papers_list=[]
     for id_paper  in  paper_id:
@@ -151,8 +157,52 @@ def create_gene_desease_ass_from_DisGenNET(gene_id):
     df_ass.show()
     return df_ass
 
+"""
+Funzione dato un testo elimina punteggiatura, stopwords ed
+esegue la tokenizzazione.
+"""
+
+def remove_puntuaction_stop_words(text):
+    nltk.download("stopwords")
+    en_stopwords=stopwords.words('english')
+    tokenizer = RegexpTokenizer(r'\w+')
+    tokens=tokenizer.tokenize(text)
+    tokens
+    #tokens = word_tokenize(text)
+    tokens_f=[]
+    for token in tokens:
+        if(token.lower() not in en_stopwords):
+            tokens_f.append(token)
+
+    return tokens_f
+
+
+"""
+Funzione che preso in input il DataFrame con i papers
+restituisce i papers con la pulizia effettuata.
+(Rimozione della punteggiatura e delle stopwords)
+"""
+def clean_data(paper_df):
+    stop_words = set(stopwords.words('english'))
+    clean_data=[]
+    for row in  paper_df.rdd.collect():
+        t=row['Title']
+        a=row['Abstract']
+        t_clean=remove_puntuaction_stop_words(t)
+        a_clean=remove_puntuaction_stop_words(a)
+        x=(t_clean,a_clean)
+        clean_data.append(x)
+    df_clean_paoers=spark.createDataFrame(clean_data,['Title','Abstract'])
+    return df_clean_paoers
+
+
+
+
 
 gene_id=init_data()
 papers_list=find_papers(gene_id)
 paper_df=create_spark_dataframe(papers_list)
 ass_df=create_gene_desease_ass_from_DisGenNET(gene_id)
+clean_papers_df=clean_data(paper_df)
+
+clean_papers_df.show()
