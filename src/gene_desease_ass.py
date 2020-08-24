@@ -167,8 +167,6 @@ def remove_puntuaction_stop_words(text):
     en_stopwords=stopwords.words('english')
     tokenizer = RegexpTokenizer(r'\w+')
     tokens=tokenizer.tokenize(text)
-    tokens
-    #tokens = word_tokenize(text)
     tokens_f=[]
     for token in tokens:
         if(token.lower() not in en_stopwords):
@@ -204,5 +202,4 @@ papers_list=find_papers(gene_id)
 paper_df=create_spark_dataframe(papers_list)
 ass_df=create_gene_desease_ass_from_DisGenNET(gene_id)
 clean_papers_df=clean_data(paper_df)
-
 clean_papers_df.show()
