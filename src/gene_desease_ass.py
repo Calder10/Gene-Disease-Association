@@ -20,9 +20,8 @@ import pandas as pd
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from nltk.tokenize import RegexpTokenizer
-#from nltk.stem.snowball import SnowballStemmer
 from nltk.stem import WordNetLemmatizer
-#nltk.download("vader_lexicon")
+from nltk import pos_tag
 from nltk.sentiment.vader import SentimentIntensityAnalyzer as SA
 Entrez.email="salvatorecalderaro01@community.unipa.it"
 
@@ -71,7 +70,8 @@ def find_papers(gene_id):
 
 """
 Funzione che controlla se l'ID di un gene esiste e in caso positvo
-stampa le informaioni inerenti: l'Id, il nome, il simbolo, la descrizione e la tassonomia
+stampa le informaioni inerenti: l'Id, il nome,
+il simbolo e la tassonomia
 """
 
 def check_gene(gene_id):
