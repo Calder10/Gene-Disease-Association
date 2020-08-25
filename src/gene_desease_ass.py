@@ -20,7 +20,9 @@ import pandas as pd
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 from nltk.tokenize import RegexpTokenizer
-nltk.download("vader_lexicon")
+#from nltk.stem.snowball import SnowballStemmer
+from nltk.stem import WordNetLemmatizer
+#nltk.download("vader_lexicon")
 from nltk.sentiment.vader import SentimentIntensityAnalyzer as SA
 Entrez.email="salvatorecalderaro01@community.unipa.it"
 
@@ -40,7 +42,8 @@ def find_papers(gene_id):
     Controllare se è possibile selezionare gli articoli più rilevanti e con il
     maggior numero di citazioni.
     """
-    paper_id=paper_id[:200]
+    # SELEZIONARE I PRIMI 200 ARTICOLI ED EVENTUALMENTE EFFETTUARE UNO SHUFFLE
+    paper_id=paper_id[:10]
     c=1
     papers_list=[]
     for id_paper  in  paper_id:
@@ -163,7 +166,7 @@ esegue la tokenizzazione.
 """
 
 def remove_puntuaction_stop_words(text):
-    nltk.download("stopwords")
+    #nltk.download("stopwords")
     en_stopwords=stopwords.words('english')
     tokenizer = RegexpTokenizer(r'\w+')
     tokens=tokenizer.tokenize(text)
@@ -176,9 +179,22 @@ def remove_puntuaction_stop_words(text):
 
 
 """
+Funzione che dato in input un dato testo
+(già tokenizzato), ne esegue la lemmatizzaziome.
+"""
+def execute_lemmatization(tokens):
+    lemmatizzer=WordNetLemmatizer()
+    tokens_l=[]
+    for token in tokens:
+        t_l=lemmatizzer.lemmatize(token)
+        tokens_l.append(t_l)
+    return tokens_l
+
+"""
 Funzione che preso in input il DataFrame con i papers
 restituisce i papers con la pulizia effettuata.
-(Rimozione della punteggiatura e delle stopwords)
+(Rimozione della punteggiatura e delle stopwords, lemmatizzaziome
+delle parole.)
 """
 def clean_data(paper_df):
     stop_words = set(stopwords.words('english'))
@@ -188,18 +204,29 @@ def clean_data(paper_df):
         a=row['Abstract']
         t_clean=remove_puntuaction_stop_words(t)
         a_clean=remove_puntuaction_stop_words(a)
-        x=(t_clean,a_clean)
+        t_lemm=execute_lemmatization(t_clean)
+        a_lemm=execute_lemmatization(a_clean)
+        x=(t_lemm,a_lemm)
         clean_data.append(x)
-    df_clean_paoers=spark.createDataFrame(clean_data,['Title','Abstract'])
-    return df_clean_paoers
+    df_clean_papers=spark.createDataFrame(clean_data,['Title','Abstract'])
+    return df_clean_papers
 
-
-
-
+"""
+Funzione che preso in input un dataframe spark ne stampa il
+contenuto.
+"""
+def print_data_frame(df):
+    count=1
+    for row in df.rdd.collect():
+        print("\n %d" %(count))
+        print(row['Title'])
+        print(row['Abstract'])
+        count+=1
+        print("------------------------------------------------------------------------------")
 
 gene_id=init_data()
 papers_list=find_papers(gene_id)
 paper_df=create_spark_dataframe(papers_list)
 ass_df=create_gene_desease_ass_from_DisGenNET(gene_id)
 clean_papers_df=clean_data(paper_df)
-clean_papers_df.show()
+print_data_frame(clean_papers_df)
