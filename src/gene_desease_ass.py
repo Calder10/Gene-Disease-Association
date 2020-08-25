@@ -141,7 +141,7 @@ def create_spark_dataframe(papers):
 
 
 """
-Funzione che preso in input l'ID del gene estare le associazioni
+Funzione che preso in input l'ID del gene estrae le associazioni
 gia note, fra quest'ultimo e le relative malattie dal database DisGenNet.
 La funzione verrà utilizzata per verificare il grado di
 confidenza dei risultati che restituirà in output il modello.
