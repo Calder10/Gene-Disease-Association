@@ -13,7 +13,6 @@ GENE-DESEASE ASSOCIATION ANALYZING SCIENTIFIC LITERATURE
 from os import  system
 import csv
 from pyspark.sql import SparkSession
-spark = SparkSession.builder.appName('gene_desease_association').getOrCreate()
 import nltk
 from Bio import Entrez
 import pandas as pd
@@ -23,11 +22,12 @@ from nltk.tokenize import RegexpTokenizer
 from nltk.stem import WordNetLemmatizer
 from nltk import pos_tag
 from nltk.sentiment.vader import SentimentIntensityAnalyzer as SA
+spark = SparkSession.builder.appName('gene_desease_association').getOrCreate()
 Entrez.email="salvatorecalderaro01@community.unipa.it"
 
 """
 Funzione che dato in input il nome del gene o il suo ID effettua una query
-su Pubmed e restituisce Titolo e Abstract
+su Pubmed e restituisce Titolo e Abstract (se quest'ultimo è disponibile)
 dei primi 100 articoli scientifici trovati.
 """
 
@@ -61,6 +61,8 @@ def find_papers(gene_id):
 
             #print("Abstract:")
             #print(article['Abstract']['AbstractText'])
+        else:
+            a=""
 
         c=c+1
         r=(title,a)
@@ -73,7 +75,6 @@ Funzione che controlla se l'ID di un gene esiste e in caso positvo
 stampa le informaioni inerenti: l'Id, il nome,
 il simbolo e la tassonomia
 """
-
 def check_gene(gene_id):
     request = Entrez.epost("gene",id=gene_id)
     try:
@@ -106,11 +107,25 @@ def check_gene(gene_id):
         except KeyError:
             gene_info["taxname"] = ""
             continue
-
-    gene_info_list.append(gene_info)
+    gene_info.keys()
+    #gene_info_list.append(gene_info)
+    """
     print ("%s\t%s\t%s\t%s" % ("TaxonomyName","ID","OfficialSymbol","OfficialFullName"))
-    print ("%s\t%s\t%s\t%s" % (gene_info_list[0]["taxname"],gene_info_list[0]["entrez_id"],gene_info_list[0]["official_symbol"],gene_info_list[0]["official_full_name"]))
-    return 1
+    print ("%s\t%s\t%s\t%s" % (gene_info_list[0]["taxname"],gene_info_list[0]["entrez_id"],gene_info_list[0]["official_symbol"],gene_info_list[0]["official_full_name
+    """
+    return (1,gene_info)
+
+
+"""
+Funzione che preso in input una serie di informazioni inerenti
+il gene le memorizza all'interno di un dataframe
+"""
+def createGeneDataFrame(gene_info):
+    val=[(str(gene_info['taxname']),str(gene_info['entrez_id']),str(gene_info['official_symbol']),str(gene_info['official_full_name']))]
+    val
+    df_gene=spark.createDataFrame(val,["TaxonomyName","ID","OfficialSymbol","OfficialFullName"])
+    df_gene.show()
+    return df_gene
 
 """
 Funzione che permetta all'utente di inserire da tastiera l'ID del gene
@@ -120,13 +135,13 @@ di cui devono essere trovate le malattie associate.
 def init_data():
     while (True):
         gene_id=input("Inserisci l'ID del gene--->")
-        f=check_gene(gene_id)
+        (f,info_gene)=check_gene(gene_id)
         if(f==1):
             break
         else:
             system("clear")
             print("L'ID %s non corrisponde ad alcun gene. Riprova!" %(gene_id))
-    return gene_id
+    return (gene_id,info_gene)
 
 
 """
@@ -224,7 +239,9 @@ def print_data_frame(df):
         count+=1
         print("------------------------------------------------------------------------------")
 
-gene_id=init_data()
+system("clear")
+(gene_id,info_gene)=init_data()
+gene_df=createGeneDataFrame(info_gene)
 papers_list=find_papers(gene_id)
 paper_df=create_spark_dataframe(papers_list)
 ass_df=create_gene_desease_ass_from_DisGenNET(gene_id)
