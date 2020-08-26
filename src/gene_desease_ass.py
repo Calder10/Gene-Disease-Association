@@ -13,6 +13,9 @@ GENE-DESEASE ASSOCIATION ANALYZING SCIENTIFIC LITERATURE
 from os import system
 import csv
 from pyspark.sql import SparkSession
+from pyspark.sql.functions import *
+from pyspark.sql.functions import trim
+from pyspark.sql.types import StringType
 import nltk
 from Bio import Entrez
 import pandas as pd
@@ -23,6 +26,7 @@ from nltk.stem import WordNetLemmatizer
 from nltk import pos_tag
 from nltk.sentiment.vader import SentimentIntensityAnalyzer as SA
 spark = SparkSession.builder.appName('gene_desease_association').getOrCreate()
+DisGenNET_path="data/all_gene_disease_associations.tsv"
 Entrez.email="salvatorecalderaro01@community.unipa.it"
 
 """
@@ -109,7 +113,6 @@ def check_gene(gene_id):
         except KeyError:
             gene_info["taxname"] = ""
             continue
-    gene_info.keys()
     #gene_info_list.append(gene_info)
     """
     print ("%s\t%s\t%s\t%s" % ("TaxonomyName","ID","OfficialSymbol","OfficialFullName"))
@@ -156,25 +159,26 @@ def create_spark_dataframe(papers):
     df_papers.show(20)
     return df_papers
 
+"""
+Funzione che carica all'interno di un DataFrame
+le associazioni fra geni e malattie memorizzate
+all'interno del DisGenNET database.
+"""
+
+def loadDisGenNet():
+    df = spark.read.csv(DisGenNET_path, sep=r'\t', header=True).select("geneId","diseaseName")
+    df = df.withColumn("geneId", df["geneId"].cast(StringType()))
+    df = df.withColumn('geneId', ltrim(df.geneId))
+    return df
 
 """
 Funzione che preso in input l'ID del gene estrae le associazioni
-gia note, fra quest'ultimo e le relative malattie dal database DisGenNet.
-La funzione verrà utilizzata per verificare il grado di
-confidenza dei risultati che restituirà in output il modello.
+gia note, fra quest'ultimo e le relative malattie dal dataframe
+contenente tutte le associazioni.
 """
-def create_gene_desease_ass_from_DisGenNET(gene_id):
-    f=open("data/all_gene_disease_associations.tsv")
-    tsv_file=csv.reader(f,delimiter="\t")
-    gene_des_ass=[]
-    for row in tsv_file:
-        x=(row[0].strip(' \t\n\r'))
-        if(gene_id == x):
-            t=str(row[0])
-            t=(x,str(row[5]).strip(' \t\n\r'))
-            gene_des_ass.append(t)
-    df_ass=spark.createDataFrame(gene_des_ass,['ID Gene','Desease Name'])
-    df_ass.show()
+
+def find_association_DisGenNET(df,gene_id):
+    df_ass=df.filter(df.geneId == gene_id)
     return df_ass
 
 """
@@ -283,7 +287,9 @@ system("clear")
 gene_df=createGeneDataFrame(info_gene)
 papers_list=find_papers(gene_id)
 paper_df=create_spark_dataframe(papers_list)
-ass_df=create_gene_desease_ass_from_DisGenNET(gene_id)
+DisGenNET_df=loadDisGenNet()
+ass_df=find_association_DisGenNET(DisGenNET_df,gene_id)
+ass_df.show(10)
 clean_papers_df=clean_data(paper_df)
 #print_data_frame(clean_papers_df)
 clean_papers_df=posTagging(clean_papers_df)
