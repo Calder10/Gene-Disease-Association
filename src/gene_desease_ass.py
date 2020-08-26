@@ -10,7 +10,7 @@ GENE-DESEASE ASSOCIATION ANALYZING SCIENTIFIC LITERATURE
 
 
 # Importo le librerie
-from os import  system
+from os import system
 import csv
 from pyspark.sql import SparkSession
 import nltk
@@ -226,6 +226,43 @@ def clean_data(paper_df):
     df_clean_papers=spark.createDataFrame(clean_data,['Title','Abstract'])
     return df_clean_papers
 
+
+"""
+Funzione che preso un testo su cui è stato già effettuato
+il POS, restituisce una lista contenente solo sostantivi
+singolari e plurali, simboli e nomi propri.
+"""
+
+def remove_not_essentialPOS(tags):
+    words=[]
+    for t in tags:
+        if(t[1]=="NNS" or t[1]=="NN" or t[1]=="NNP" or t[1]=="FW" or t[1]=="SYM" or t[1]=="CD"):
+            words.append(t[0])
+    return words
+
+
+"""
+Funzione che preso in input un insieme di token effettua
+il part of speech tagging.
+La funzione restituirà un dataframe contenente solamente
+le parole che vegono etichettate come sostantivi in
+modo da ridurre la quantità di dati.
+"""
+def posTagging(clean_papers_df):
+    l=[]
+    for row in  clean_papers_df.rdd.collect():
+        t=row['Title']
+        a=row['Abstract']
+        t_tag=pos_tag(t)
+        a_tag=pos_tag(a)
+        t_tag_r=remove_not_essentialPOS(t_tag)
+        a_tag_r=remove_not_essentialPOS(a_tag)
+        x=(t_tag_r,a_tag_r)
+        l.append(x)
+    df_clean_papers=spark.createDataFrame(l,['Title','Abstract'])
+    return df_clean_papers
+
+
 """
 Funzione che preso in input un dataframe spark ne stampa il
 contenuto.
@@ -246,4 +283,6 @@ papers_list=find_papers(gene_id)
 paper_df=create_spark_dataframe(papers_list)
 ass_df=create_gene_desease_ass_from_DisGenNET(gene_id)
 clean_papers_df=clean_data(paper_df)
+print_data_frame(clean_papers_df)
+clean_papers_df=posTagging(clean_papers_df)
 print_data_frame(clean_papers_df)
