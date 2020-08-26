@@ -32,6 +32,7 @@ dei primi 100 articoli scientifici trovati.
 """
 
 def find_papers(gene_id):
+    print("Estrazione degli articoli in corso.....")
     query=Entrez.elink(dbfrom="pubmed", id=gene_id,linkname="gene_pubmed")
     result=Entrez.read(query)
     query.close()
@@ -42,7 +43,7 @@ def find_papers(gene_id):
     maggior numero di citazioni.
     """
     # SELEZIONARE I PRIMI 200 ARTICOLI ED EVENTUALMENTE EFFETTUARE UNO SHUFFLE
-    paper_id=paper_id[:10]
+    paper_id=paper_id[:200]
     c=1
     papers_list=[]
     for id_paper  in  paper_id:
@@ -68,6 +69,7 @@ def find_papers(gene_id):
         r=(title,a)
         papers_list.append(r)
         #print("--------------------------------------------------------------------------")
+    print("Estazione articoli completata !")
     return papers_list
 
 """
@@ -283,6 +285,6 @@ papers_list=find_papers(gene_id)
 paper_df=create_spark_dataframe(papers_list)
 ass_df=create_gene_desease_ass_from_DisGenNET(gene_id)
 clean_papers_df=clean_data(paper_df)
-print_data_frame(clean_papers_df)
+#print_data_frame(clean_papers_df)
 clean_papers_df=posTagging(clean_papers_df)
-print_data_frame(clean_papers_df)
+#print_data_frame(clean_papers_df)
