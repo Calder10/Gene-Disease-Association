@@ -5,13 +5,12 @@ Anno Accademico 2019/2020
 Elaborazione Dati - Modulo Big Data Management
 Salvatore Calderaro 0704378
 Email: salvatorecalderaro01@community.unipa.it
-GENE-DESEASE ASSOCIATION ANALYZING SCIENTIFIC LITERATURE
+GENE-DISEASE ASSOCIATION ANALYZING SCIENTIFIC LITERATURE
 """
 
 
 # Importo le librerie
 from os import system
-import csv
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import *
 from pyspark.sql.functions import trim
@@ -27,9 +26,12 @@ from nltk import pos_tag
 from nltk.sentiment.vader import SentimentIntensityAnalyzer as SA
 import scispacy
 import spacy
+from wordcloud import WordCloud
+import matplotlib.pyplot as plt
 ner = spacy.load("en_ner_bc5cdr_md")
 spark = SparkSession.builder.appName('gene_desease_association').getOrCreate()
 DisGenNET_path="data/all_gene_disease_associations.tsv"
+res_path="res"
 Entrez.email="salvatorecalderaro01@community.unipa.it"
 
 """
@@ -50,7 +52,7 @@ def find_papers(gene_id):
     maggior numero di citazioni.
     """
     # SELEZIONARE I PRIMI 200 ARTICOLI ED EVENTUALMENTE EFFETTUARE UNO SHUFFLE
-    paper_id=paper_id[:5]
+    paper_id=paper_id[:100]
     c=1
     papers_list=[]
     for id_paper  in  paper_id:
@@ -303,8 +305,18 @@ def apply_ner(text):
     doc=ner(text)
     for entity in doc.ents:
         if entity.label_=="DISEASE":
-            diseases.append(entity)
+            diseases.append(str(entity))
     return diseases
+
+"""
+Funzione che presa in input la lista delle malattie
+ottenuta analizzando la letteratura scientifica
+rimuove duplicati e quelle parole che per errore
+potrebbero essere state identificate come malattie.
+"""
+def clean_diseases_list(diseases):
+    clean_diseases = list(dict.fromkeys(diseases))
+    return clean_diseases
 
 """
 Funzione che preso in input un dataframe spark ne stampa il
@@ -333,4 +345,7 @@ clean_papers_df=clean_data(paper_df)
 clean_papers_df=posTagging(clean_papers_df)
 #print_data_frame(clean_papers_df)
 diseases=analyze_papers(clean_papers_df)
+diseases
+clean_diseases=clean_diseases_list(diseases)
 print(diseases)
+print(clean_diseases)
