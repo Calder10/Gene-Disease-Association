@@ -287,7 +287,7 @@ def analyze_papers(clean_papers_df):
         a=row['Abstract']
         x=t+a
         paper=" ".join(x)
-        ris=ner(paper)
+        ris=apply_ner(paper)
         diseases+=ris
     print("Analisi completata !")
     return diseases
@@ -298,9 +298,8 @@ su di un testo, restituendo solo le entità
 che vengono riconosciute come malattie.
 """
 
-def ner(text):
+def apply_ner(text):
     diseases=[]
-    ner = spacy.load("en_ner_bc5cdr_md")
     doc=ner(text)
     for entity in doc.ents:
         if entity.label_=="DISEASE":
@@ -334,3 +333,4 @@ clean_papers_df=clean_data(paper_df)
 clean_papers_df=posTagging(clean_papers_df)
 #print_data_frame(clean_papers_df)
 diseases=analyze_papers(clean_papers_df)
+print(diseases)
