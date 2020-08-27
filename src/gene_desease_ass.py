@@ -318,6 +318,21 @@ def clean_diseases_list(diseases):
     clean_diseases = list(dict.fromkeys(diseases))
     return clean_diseases
 
+
+def show_word_cloud(clean_diseases,gene_df):
+    text=" ".join(clean_diseases)
+    cloud=WordCloud(background_color="white").generate(text)
+    row=gene_df.rdd.collect()
+    title_fig="Malattie associate al gene " + str(row[0]['OfficialSymbol']) +"(" + str(row[0]['ID'])+")"
+    path_fig=res_path+"/"+ str(row[0]['OfficialSymbol']) +"(" + str(row[0]['ID'])+")"
+    plt.figure(figsize=(30,10))
+    plt.title(title_fig,fontsize=40)
+    plt.imshow(cloud)
+    plt.axis('off')
+    plt.savefig(path_fig)
+    plt.show()
+
+
 """
 Funzione che preso in input un dataframe spark ne stampa il
 contenuto.
@@ -345,7 +360,7 @@ clean_papers_df=clean_data(paper_df)
 clean_papers_df=posTagging(clean_papers_df)
 #print_data_frame(clean_papers_df)
 diseases=analyze_papers(clean_papers_df)
-diseases
 clean_diseases=clean_diseases_list(diseases)
 print(diseases)
 print(clean_diseases)
+show_word_cloud(clean_diseases,gene_df)
