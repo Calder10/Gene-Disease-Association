@@ -25,6 +25,9 @@ from nltk.tokenize import RegexpTokenizer
 from nltk.stem import WordNetLemmatizer
 from nltk import pos_tag
 from nltk.sentiment.vader import SentimentIntensityAnalyzer as SA
+import scispacy
+import spacy
+ner = spacy.load("en_ner_bc5cdr_md")
 spark = SparkSession.builder.appName('gene_desease_association').getOrCreate()
 DisGenNET_path="data/all_gene_disease_associations.tsv"
 Entrez.email="salvatorecalderaro01@community.unipa.it"
@@ -47,7 +50,7 @@ def find_papers(gene_id):
     maggior numero di citazioni.
     """
     # SELEZIONARE I PRIMI 200 ARTICOLI ED EVENTUALMENTE EFFETTUARE UNO SHUFFLE
-    paper_id=paper_id[:200]
+    paper_id=paper_id[:5]
     c=1
     papers_list=[]
     for id_paper  in  paper_id:
@@ -269,10 +272,46 @@ def posTagging(clean_papers_df):
     return df_clean_papers
 
 
+
+"""
+Funzione che scorrendo il dataframe in cui
+sono presenti gli articoli applica per ciascuno
+la NER. La funzione restituira in output un insieme
+di malattie.
+"""
+def analyze_papers(clean_papers_df):
+    diseases=[]
+    print("Analisi letteratura scientifica in corso....")
+    for row in clean_papers_df.rdd.collect():
+        t=row['Title']
+        a=row['Abstract']
+        x=t+a
+        paper=" ".join(x)
+        ris=ner(paper)
+        diseases+=ris
+    print("Analisi completata !")
+    return diseases
+
+"""
+Funziona che effettua la Named enity recognition
+su di un testo, restituendo solo le entità
+che vengono riconosciute come malattie.
+"""
+
+def ner(text):
+    diseases=[]
+    ner = spacy.load("en_ner_bc5cdr_md")
+    doc=ner(text)
+    for entity in doc.ents:
+        if entity.label_=="DISEASE":
+            diseases.append(entity)
+    return diseases
+
 """
 Funzione che preso in input un dataframe spark ne stampa il
 contenuto.
 """
+
 def print_data_frame(df):
     count=1
     for row in df.rdd.collect():
@@ -294,3 +333,4 @@ clean_papers_df=clean_data(paper_df)
 #print_data_frame(clean_papers_df)
 clean_papers_df=posTagging(clean_papers_df)
 #print_data_frame(clean_papers_df)
+diseases=analyze_papers(clean_papers_df)
