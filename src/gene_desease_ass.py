@@ -50,7 +50,7 @@ def find_papers(gene_id):
     except IndexError:
         print("Spiacente non sono stati trovati articoli scientifici !")
         return papers_list
-    # SELEZIONARE I PRIMI 200 ARTICOLI ED EVENTUALMENTE EFFETTUARE UNO
+   
     print("Estrazione degli articoli in corso.....")
     paper_id=paper_id[:200]
     for id_paper  in  paper_id:
