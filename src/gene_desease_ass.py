@@ -8,7 +8,6 @@ Email: salvatorecalderaro01@community.unipa.it
 GENE-DISEASE ASSOCIATION ANALYZING SCIENTIFIC LITERATURE
 """
 
-
 # Importo le librerie
 from os import system
 from pyspark.sql import SparkSession
@@ -42,7 +41,7 @@ dei primi 100 articoli scientifici trovati.
 
 def find_papers(gene_id):
     print("Estrazione degli articoli in corso.....")
-    query=Entrez.elink(dbfrom="pubmed", id=gene_id,linkname="gene_pubmed")
+    query=Entrez.elink(dbfrom="pubmed",sort="relevance", id=gene_id,linkname="gene_pubmed")
     result=Entrez.read(query)
     query.close()
     paper_id=[link["Id"] for link in result[0]["LinkSetDb"][0]["Link"]]
@@ -54,27 +53,18 @@ def find_papers(gene_id):
     # SELEZIONARE I PRIMI 200 ARTICOLI ED EVENTUALMENTE EFFETTUARE UNO SHUFFLE
     paper_id=paper_id[:100]
     c=1
+
     papers_list=[]
     for id_paper  in  paper_id:
         pubmed_entry = Entrez.efetch(db="pubmed", id=id_paper, retmode="xml")
         ris  = Entrez.read(pubmed_entry)
         article = ris['PubmedArticle'][0]['MedlineCitation']['Article']
         title=str(article['ArticleTitle'])
-        """
-        print("Articolo %d"%(c))
-        print("Titolo:")
-        print(article['ArticleTitle'])
-        """
         if ('Abstract' in article):
             abstract=article['Abstract']['AbstractText']
             a=str(abstract[0])
-
-            #print("Abstract:")
-            #print(article['Abstract']['AbstractText'])
         else:
             a=""
-
-        c=c+1
         r=(title,a)
         papers_list.append(r)
         #print("--------------------------------------------------------------------------")
@@ -247,7 +237,8 @@ singolari e plurali, simboli e nomi propri.
 def remove_not_essentialPOS(tags):
     words=[]
     for t in tags:
-        if(t[1]=="NNS" or t[1]=="NN" or t[1]=="NNP" or t[1]=="FW" or t[1]=="SYM" or t[1]=="CD"):
+        #or t[1]=="NNP"
+        if(t[1]=="NNS" or t[1]=="NN" or t[1]=="FW" or t[1]=="SYM" or t[1]=="CD"):
             words.append(t[0])
     return words
 
@@ -287,7 +278,9 @@ def analyze_papers(clean_papers_df):
     for row in clean_papers_df.rdd.collect():
         t=row['Title']
         a=row['Abstract']
-        x=t+a
+        l_t=lower_list(t)
+        l_a=lower_list(a)
+        x=l_t+l_a
         paper=" ".join(x)
         ris=apply_ner(paper)
         diseases+=ris
@@ -305,7 +298,8 @@ def apply_ner(text):
     doc=ner(text)
     for entity in doc.ents:
         if entity.label_=="DISEASE":
-            diseases.append(str(entity))
+            if(len(str(entity))<=30):
+                diseases.append(str(entity))
     return diseases
 
 """
@@ -318,20 +312,33 @@ def clean_diseases_list(diseases):
     clean_diseases = list(dict.fromkeys(diseases))
     return clean_diseases
 
-
+"""
+Funzione che preso in input l'insieme delle malattie
+associate visualizza una WordCloud.
+"""
 def show_word_cloud(clean_diseases,gene_df):
     text=" ".join(clean_diseases)
     cloud=WordCloud(background_color="white").generate(text)
     row=gene_df.rdd.collect()
     title_fig="Malattie associate al gene " + str(row[0]['OfficialSymbol']) +"(" + str(row[0]['ID'])+")"
     path_fig=res_path+"/"+ str(row[0]['OfficialSymbol']) +"(" + str(row[0]['ID'])+")"
-    plt.figure(figsize=(30,10))
-    plt.title(title_fig,fontsize=40)
+    plt.figure(figsize=(20,8))
+    plt.title(title_fig,fontsize=20)
     plt.imshow(cloud)
     plt.axis('off')
     plt.savefig(path_fig)
     plt.show()
 
+"""
+Funzione che preso in inut il DataFrame con le malattie associate
+al gene riversa i nomi in una lista.
+"""
+def create_diseases_list(ass_df):
+    correct_disease_list=[]
+    for row in ass_df.rdd.collect():
+        d=str(row['diseaseName'])
+        correct_disease_list.append(d)
+    return correct_disease_list
 
 """
 Funzione che preso in input un dataframe spark ne stampa il
@@ -347,20 +354,46 @@ def print_data_frame(df):
         count+=1
         print("------------------------------------------------------------------------------")
 
-system("clear")
-(gene_id,info_gene)=init_data()
-gene_df=createGeneDataFrame(info_gene)
-papers_list=find_papers(gene_id)
-paper_df=create_spark_dataframe(papers_list)
-DisGenNET_df=loadDisGenNet()
-ass_df=find_association_DisGenNET(DisGenNET_df,gene_id)
-ass_df.show(10)
-clean_papers_df=clean_data(paper_df)
-#print_data_frame(clean_papers_df)
-clean_papers_df=posTagging(clean_papers_df)
-#print_data_frame(clean_papers_df)
-diseases=analyze_papers(clean_papers_df)
-clean_diseases=clean_diseases_list(diseases)
-print(diseases)
-print(clean_diseases)
-show_word_cloud(clean_diseases,gene_df)
+"""
+Funzione che converte tutti le stringhe di una lista
+in minuscolo.
+"""
+def lower_list(l):
+    for x in l:
+        x.lower()
+    return l
+
+"""
+Funzione che presa in input una lisra ne stampa
+il contenuto.
+"""
+def print_list(l):
+    for x in l:
+        print(x)
+    print("______________________________________________________________________")
+
+
+"""
+Main routine
+"""
+def main():
+    system("clear")
+    (gene_id,info_gene)=init_data()
+    gene_df=createGeneDataFrame(info_gene)
+    papers_list=find_papers(gene_id)
+    paper_df=create_spark_dataframe(papers_list)
+    DisGenNET_df=loadDisGenNet()
+    ass_df=find_association_DisGenNET(DisGenNET_df,gene_id)
+    ass_df.show(10)
+    clean_papers_df=clean_data(paper_df)
+    #print_data_frame(clean_papers_df)
+    clean_papers_df=posTagging(clean_papers_df)
+    #print_data_frame(clean_papers_df)
+    diseases=analyze_papers(clean_papers_df)
+    correct_disease_list=create_diseases_list(ass_df)
+    clean_diseases=clean_diseases_list(diseases)
+    print("Malattie trovate")
+    print_list(clean_diseases)
+    show_word_cloud(clean_diseases,gene_df)
+
+main()
