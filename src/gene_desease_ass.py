@@ -10,6 +10,7 @@ GENE-DISEASE ASSOCIATION ANALYZING SCIENTIFIC LITERATURE
 
 # Importo le librerie
 from os import system
+import sys
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import *
 from pyspark.sql.functions import trim
@@ -40,34 +41,42 @@ dei primi 100 articoli scientifici trovati.
 """
 
 def find_papers(gene_id):
-    print("Estrazione degli articoli in corso.....")
     query=Entrez.elink(dbfrom="pubmed",sort="relevance", id=gene_id,linkname="gene_pubmed")
     result=Entrez.read(query)
     query.close()
-    paper_id=[link["Id"] for link in result[0]["LinkSetDb"][0]["Link"]]
+    papers_list=[]
+    try:
+        paper_id=[link["Id"] for link in result[0]["LinkSetDb"][0]["Link"]]
+    except IndexError:
+        print("Spiacente non sono stati trovati articoli scientifici !")
+        return papers_list
     #Considero i primi 100 articoli trovati
     """
     Controllare se è possibile selezionare gli articoli più rilevanti e con il
     maggior numero di citazioni.
     """
-    # SELEZIONARE I PRIMI 200 ARTICOLI ED EVENTUALMENTE EFFETTUARE UNO SHUFFLE
-    paper_id=paper_id[:100]
-    c=1
-
-    papers_list=[]
+    # SELEZIONARE I PRIMI 200 ARTICOLI ED EVENTUALMENTE EFFETTUARE UNO
+    print("Estrazione degli articoli in corso.....")
+    paper_id=paper_id[:200]
     for id_paper  in  paper_id:
         pubmed_entry = Entrez.efetch(db="pubmed", id=id_paper, retmode="xml")
         ris  = Entrez.read(pubmed_entry)
-        article = ris['PubmedArticle'][0]['MedlineCitation']['Article']
-        title=str(article['ArticleTitle'])
+        try:
+            article = ris['PubmedArticle'][0]['MedlineCitation']['Article']
+            title=str(article['ArticleTitle'])
+        except IndexError:
+            title=""
+
         if ('Abstract' in article):
-            abstract=article['Abstract']['AbstractText']
-            a=str(abstract[0])
+            try:
+                abstract=article['Abstract']['AbstractText']
+                a=str(abstract[0])
+            except IndexError:
+                a=""
         else:
             a=""
         r=(title,a)
         papers_list.append(r)
-        #print("--------------------------------------------------------------------------")
     print("Estazione articoli completata !")
     return papers_list
 
@@ -106,13 +115,8 @@ def check_gene(gene_id):
         try:
             gene_info["taxname"] = gene["Entrezgene_source"]["BioSource"]["BioSource_org"]["Org-ref"]["Org-ref_taxname"]
         except KeyError:
-            gene_info["taxname"] = ""
+            gene_info["taxname"] = " "
             continue
-    #gene_info_list.append(gene_info)
-    """
-    print ("%s\t%s\t%s\t%s" % ("TaxonomyName","ID","OfficialSymbol","OfficialFullName"))
-    print ("%s\t%s\t%s\t%s" % (gene_info_list[0]["taxname"],gene_info_list[0]["entrez_id"],gene_info_list[0]["official_symbol"],gene_info_list[0]["official_full_name
-    """
     return (1,gene_info)
 
 
@@ -121,8 +125,11 @@ Funzione che preso in input una serie di informazioni inerenti
 il gene le memorizza all'interno di un dataframe
 """
 def createGeneDataFrame(gene_info):
-    val=[(str(gene_info['taxname']),str(gene_info['entrez_id']),str(gene_info['official_symbol']),str(gene_info['official_full_name']))]
-    val
+    try:
+        val=[(str(gene_info['taxname']),str(gene_info['entrez_id']),str(gene_info['official_symbol']),str(gene_info['official_full_name']))]
+    except KeyError:
+        val=[(" ",str(gene_info['entrez_id']),str(gene_info['official_symbol']),str(gene_info['official_full_name']))]
+
     df_gene=spark.createDataFrame(val,["TaxonomyName","ID","OfficialSymbol","OfficialFullName"])
     df_gene.show()
     return df_gene
@@ -275,6 +282,7 @@ di malattie.
 def analyze_papers(clean_papers_df):
     diseases=[]
     print("Analisi letteratura scientifica in corso....")
+    count=0
     for row in clean_papers_df.rdd.collect():
         t=row['Title']
         a=row['Abstract']
@@ -284,7 +292,8 @@ def analyze_papers(clean_papers_df):
         paper=" ".join(x)
         ris=apply_ner(paper)
         diseases+=ris
-    print("Analisi completata !")
+        count+=1
+    print("Analisi completata ! Sono ststi analizzati %d articoli " %(count))
     return diseases
 
 """
@@ -297,7 +306,7 @@ def apply_ner(text):
     diseases=[]
     doc=ner(text)
     for entity in doc.ents:
-        if entity.label_=="DISEASE":
+        if (entity.label_=="DISEASE" or entity.label_=="DESEASE"):
             if(len(str(entity))<=30):
                 diseases.append(str(entity))
     return diseases
@@ -381,19 +390,26 @@ def main():
     (gene_id,info_gene)=init_data()
     gene_df=createGeneDataFrame(info_gene)
     papers_list=find_papers(gene_id)
-    paper_df=create_spark_dataframe(papers_list)
-    DisGenNET_df=loadDisGenNet()
-    ass_df=find_association_DisGenNET(DisGenNET_df,gene_id)
-    ass_df.show(10)
-    clean_papers_df=clean_data(paper_df)
-    #print_data_frame(clean_papers_df)
-    clean_papers_df=posTagging(clean_papers_df)
-    #print_data_frame(clean_papers_df)
-    diseases=analyze_papers(clean_papers_df)
-    correct_disease_list=create_diseases_list(ass_df)
-    clean_diseases=clean_diseases_list(diseases)
-    print("Malattie trovate")
-    print_list(clean_diseases)
-    show_word_cloud(clean_diseases,gene_df)
+    if(len(papers_list)==0):
+        sys.exit(1)
+    else:
+        paper_df=create_spark_dataframe(papers_list)
+        DisGenNET_df=loadDisGenNet()
+        ass_df=find_association_DisGenNET(DisGenNET_df,gene_id)
+        ass_df.show(10)
+        clean_papers_df=clean_data(paper_df)
+        #print_data_frame(clean_papers_df)
+        clean_papers_df=posTagging(clean_papers_df)
+        #print_data_frame(clean_papers_df)
+        diseases=analyze_papers(clean_papers_df)
+        correct_disease_list=create_diseases_list(ass_df)
+        clean_diseases=clean_diseases_list(diseases)
+        print(correct_disease_list)
+        print("\n \n \n")
+        print("\n \n MALATTIE TROVATE")
+        print(clean_diseases)
+        #print_list(clean_diseases)
+        show_word_cloud(clean_diseases,gene_df)
+        exit(0)
 
 main()
