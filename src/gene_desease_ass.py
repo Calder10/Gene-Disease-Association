@@ -32,6 +32,7 @@ ner = spacy.load("en_ner_bc5cdr_md")
 spark = SparkSession.builder.appName('gene_desease_association').getOrCreate()
 DisGenNET_path="data/all_gene_disease_associations.tsv"
 res_path="res"
+med_term_path="data/med_term.csv"
 Entrez.email="salvatorecalderaro01@community.unipa.it"
 
 """
@@ -395,7 +396,8 @@ Funzione che verifica se uns data parola è presente nelle parole da rimuovere.
 Viene passata in input alla funzione filter.
 """
 def filterWord(word):
-    word_to_remove=['infection',"disease","vaccine","heart","toxicity","stasis","shoulder","breast","drug","medicine","virus","head","inflammation","toxicity"]
+    #word_to_remove=['infection',"disease","vaccine","heart","toxicity","stasis","shoulder","breast","drug","medicine","virus","head","inflammation","toxicity"]
+    word_to_remove=upload_med_term()
     if word not in word_to_remove:
         return True
     else:
@@ -409,6 +411,18 @@ def print_list(l):
     for x in l:
         print(x)
     print("______________________________________________________________________")
+
+
+"""
+Funzione che carica da un file CSV contenente una serie di termini medici che
+poi serviranno per effettuare la ripulitura della lista di malattie.
+"""
+def upload_med_term():
+    df = spark.read.csv(med_term_path,header=True).select("Name")
+    df = df.withColumn("Name", df["Name"].cast(StringType()))
+    row_list = df.select("Name").collect()
+    med_term= [ row.Name for row in row_list]
+    return med_term
 
 
 """
