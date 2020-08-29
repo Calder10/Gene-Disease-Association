@@ -23,7 +23,7 @@ from nltk.tokenize import word_tokenize
 from nltk.tokenize import RegexpTokenizer
 from nltk.stem import WordNetLemmatizer
 from nltk import pos_tag
-from nltk.sentiment.vader import SentimentIntensityAnalyzer as SA
+from textblob import TextBlob
 import scispacy
 import spacy
 from wordcloud import WordCloud
@@ -50,7 +50,7 @@ def find_papers(gene_id):
     except IndexError:
         print("Spiacente non sono stati trovati articoli scientifici !")
         return papers_list
-   
+
     print("Estrazione degli articoli in corso.....")
     paper_id=paper_id[:200]
     for id_paper  in  paper_id:
@@ -114,7 +114,17 @@ def check_gene(gene_id):
             continue
     return (1,gene_info)
 
-
+"""
+"""
+def sentiment_papers(paper_df):
+    for row in paper_df.rdd.collect():
+        t=str(row['Title'])
+        a=str(row['Abstract'])
+        text=t + "\n" + a
+        print(text)
+        s=TextBlob(text)
+        print(s.sentiment)
+        print("******************************************************************")
 """
 Funzione che preso in input una serie di informazioni inerenti
 il gene le memorizza all'interno di un dataframe
@@ -314,6 +324,8 @@ potrebbero essere state identificate come malattie.
 """
 def clean_diseases_list(diseases):
     clean_diseases = list(dict.fromkeys(diseases))
+    for i in range(0,len(clean_diseases)):
+        clean_diseases[i]=remove_duplicate_from_string(clean_diseases[i])
     return clean_diseases
 
 """
@@ -368,7 +380,16 @@ def lower_list(l):
     return l
 
 """
-Funzione che presa in input una lisra ne stampa
+Funzione che presa in input una stringa, elimina eventuali parole che occorrono
+più volte.
+"""
+def remove_duplicate_from_string(text):
+    t=text.split()
+    clean_t = list(dict.fromkeys(t))
+    clean_t=" ".join(clean_t)
+    return clean_t
+"""
+Funzione che presa in input una lista ne stampa
 il contenuto.
 """
 def print_list(l):
@@ -389,6 +410,7 @@ def main():
         sys.exit(1)
     else:
         paper_df=create_spark_dataframe(papers_list)
+        #sentiment_papers(paper_df)
         DisGenNET_df=loadDisGenNet()
         ass_df=find_association_DisGenNET(DisGenNET_df,gene_id)
         ass_df.show(10)
@@ -399,9 +421,8 @@ def main():
         diseases=analyze_papers(clean_papers_df)
         correct_disease_list=create_diseases_list(ass_df)
         clean_diseases=clean_diseases_list(diseases)
-        print(correct_disease_list)
-        print("\n \n \n")
-        print("\n \n MALATTIE TROVATE")
+        #print(correct_disease_list)
+        print("\n \n MALATTIE TROVATE:")
         print(clean_diseases)
         #print_list(clean_diseases)
         show_word_cloud(clean_diseases,gene_df)
