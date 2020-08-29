@@ -26,6 +26,7 @@ from nltk import pos_tag
 from textblob import TextBlob
 import scispacy
 import spacy
+from fuzzywuzzy import fuzz
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
 ner = spacy.load("en_ner_bc5cdr_md")
@@ -116,6 +117,7 @@ def check_gene(gene_id):
     return (1,gene_info)
 
 """
+VEDERE SE UTILIZZARE O MENO
 """
 def sentiment_papers(paper_df):
     for row in paper_df.rdd.collect():
@@ -299,7 +301,7 @@ def analyze_papers(clean_papers_df):
         ris=apply_ner(paper)
         diseases+=ris
         count+=1
-    print("Analisi completata ! Sono ststi analizzati %d articoli " %(count))
+    print("Analisi completata ! Sono stati analizzati %d articoli." %(count))
     return diseases
 
 """
@@ -334,15 +336,19 @@ def clean_diseases_list(diseases):
 Funzione che preso in input l'insieme delle malattie
 associate visualizza una WordCloud.
 """
-def show_word_cloud(clean_diseases,gene_df):
+def show_word_cloud(clean_diseases,gene_df,f):
     text=" ".join(clean_diseases)
-    cloud=WordCloud(background_color="white").generate(text)
+    cloud=WordCloud(max_font_size=40).generate(text)
     row=gene_df.rdd.collect()
-    title_fig="Malattie associate al gene " + str(row[0]['OfficialSymbol']) +"(" + str(row[0]['ID'])+")"
-    path_fig=res_path+"/"+ str(row[0]['OfficialSymbol']) +"(" + str(row[0]['ID'])+")"
-    plt.figure(figsize=(20,8))
-    plt.title(title_fig,fontsize=20)
-    plt.imshow(cloud)
+    if(f==0):
+        title_fig="Malattie associate al gene " + str(row[0]['OfficialSymbol']) +"(" + str(row[0]['ID'])+")"
+        path_fig=res_path+"/"+ str(row[0]['OfficialSymbol']) +"(" + str(row[0]['ID'])+")"
+    else:
+        title_fig="Malattie associate al gene " + str(row[0]['OfficialSymbol']) +"(" + str(row[0]['ID'])+")" + " filtrate"
+        path_fig=res_path+"/"+ str(row[0]['OfficialSymbol']) +"(" + str(row[0]['ID'])+")"+"_filter"
+    #plt.figure(figsize=(20,8))
+    plt.title(title_fig,fontsize=15)
+    plt.imshow(cloud,interpolation="bilinear")
     plt.axis('off')
     plt.savefig(path_fig)
     plt.show()
@@ -408,9 +414,14 @@ Funzione che presa in input una lista ne stampa
 il contenuto.
 """
 def print_list(l):
+    c=0
     for x in l:
-        print(x)
-    print("______________________________________________________________________")
+        if (c!=6):
+            print(x + "\t" ,end="")
+            c+=1
+        else:
+            c=0
+            print("\n")
 
 
 """
@@ -423,6 +434,27 @@ def upload_med_term():
     row_list = df.select("Name").collect()
     med_term= [ row.Name for row in row_list]
     return med_term
+
+
+"""
+Funziona che confronta i risultati ottenuti con
+le malattie associate al gene nel database DisGenNET.
+Il confronto viene effettuato mediante fuzzy stringmatching
+Viene inoltre calcolata la percentuale di malattie corrette rilevate.
+"""
+def evaluate_result(result, correct_result):
+    tot=len(result)
+    ris=[]
+    for x in result:
+        for y in correct_result:
+            score=fuzz.partial_ratio(x,y)
+            if(score>=75):
+                #print((x,y,score))
+                ris.append(x)
+    matches_list = list(dict.fromkeys(ris))
+    num_matches=len(matches_list)
+    perc=(num_matches/tot)*100
+    return(matches_list,perc)
 
 
 """
@@ -445,11 +477,13 @@ def main():
         diseases=analyze_papers(clean_papers_df)
         correct_disease_list=create_diseases_list(ass_df)
         clean_diseases=clean_diseases_list(diseases)
-        print(correct_disease_list)
-        print("\n \n MALATTIE TROVATE:")
-        print(clean_diseases)
-        #print_list(clean_diseases)
-        show_word_cloud(clean_diseases,gene_df)
+        print("\n \n MALATTIE TROVATE ANALIZZANDO LA LETTERATURA SCIENTIFICA:")
+        print_list(clean_diseases)
+        show_word_cloud(clean_diseases,gene_df,0)
+        (final_result,perc)=evaluate_result(clean_diseases,correct_disease_list)
+        print("\n \n DELLE MALATTIE IDENTIFICATE SOLO IL %.2f %% SONO RISULTATE CORRETTE: \n" %(perc))
+        print_list(final_result)
+        show_word_cloud(final_result,gene_df,1)
         exit(0)
 
 main()
