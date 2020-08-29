@@ -326,6 +326,7 @@ def clean_diseases_list(diseases):
     clean_diseases = list(dict.fromkeys(diseases))
     for i in range(0,len(clean_diseases)):
         clean_diseases[i]=remove_duplicate_from_string(clean_diseases[i])
+    clean_diseases=list(filter(filterWord,clean_diseases))
     return clean_diseases
 
 """
@@ -388,6 +389,18 @@ def remove_duplicate_from_string(text):
     clean_t = list(dict.fromkeys(t))
     clean_t=" ".join(clean_t)
     return clean_t
+
+"""
+Funzione che verifica se uns data parola è presente nelle parole da rimuovere.
+Viene passata in input alla funzione filter.
+"""
+def filterWord(word):
+    word_to_remove=['infection',"disease","vaccine","heart","toxicity","stasis","shoulder","breast","drug","medicine","virus","head","inflammation","toxicity"]
+    if word not in word_to_remove:
+        return True
+    else:
+        return False
+
 """
 Funzione che presa in input una lista ne stampa
 il contenuto.
@@ -410,18 +423,15 @@ def main():
         sys.exit(1)
     else:
         paper_df=create_spark_dataframe(papers_list)
-        #sentiment_papers(paper_df)
         DisGenNET_df=loadDisGenNet()
         ass_df=find_association_DisGenNET(DisGenNET_df,gene_id)
         ass_df.show(10)
         clean_papers_df=clean_data(paper_df)
-        #print_data_frame(clean_papers_df)
         clean_papers_df=posTagging(clean_papers_df)
-        #print_data_frame(clean_papers_df)
         diseases=analyze_papers(clean_papers_df)
         correct_disease_list=create_diseases_list(ass_df)
         clean_diseases=clean_diseases_list(diseases)
-        #print(correct_disease_list)
+        print(correct_disease_list)
         print("\n \n MALATTIE TROVATE:")
         print(clean_diseases)
         #print_list(clean_diseases)
