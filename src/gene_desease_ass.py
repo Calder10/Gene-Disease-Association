@@ -447,8 +447,9 @@ def evaluate_result(result, correct_result):
     ris=[]
     for x in result:
         for y in correct_result:
+            # provare ratio e token_sort_ratio
             score=fuzz.partial_ratio(x,y)
-            if(score>=75):
+            if(score >=75):
                 #print((x,y,score))
                 ris.append(x)
     matches_list = list(dict.fromkeys(ris))
@@ -469,17 +470,17 @@ def main():
         sys.exit(1)
     else:
         paper_df=create_spark_dataframe(papers_list)
-        DisGenNET_df=loadDisGenNet()
-        ass_df=find_association_DisGenNET(DisGenNET_df,gene_id)
-        ass_df.show(10)
         clean_papers_df=clean_data(paper_df)
         clean_papers_df=posTagging(clean_papers_df)
         diseases=analyze_papers(clean_papers_df)
-        correct_disease_list=create_diseases_list(ass_df)
         clean_diseases=clean_diseases_list(diseases)
         print("\n \n MALATTIE TROVATE ANALIZZANDO LA LETTERATURA SCIENTIFICA:")
         print_list(clean_diseases)
         show_word_cloud(clean_diseases,gene_df,0)
+        DisGenNET_df=loadDisGenNet()
+        ass_df=find_association_DisGenNET(DisGenNET_df,gene_id)
+        correct_disease_list=create_diseases_list(ass_df)
+        ass_df.show(20)
         (final_result,perc)=evaluate_result(clean_diseases,correct_disease_list)
         print("\n \n DELLE MALATTIE IDENTIFICATE SOLO IL %.2f %% SONO RISULTATE CORRETTE: \n" %(perc))
         print_list(final_result)
