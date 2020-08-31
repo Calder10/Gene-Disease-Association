@@ -219,7 +219,7 @@ def execute_lemmatization(tokens):
     lemmatizzer=WordNetLemmatizer()
     tokens_l=[]
     for token in tokens:
-        t_l=lemmatizzer.lemmatize(token)
+        t_l=lemmatizzer.lemmatize(token.lower())
         tokens_l.append(t_l)
     return tokens_l
 
@@ -473,6 +473,7 @@ def main():
     else:
         paper_df=create_spark_dataframe(papers_list)
         clean_papers_df=clean_data(paper_df)
+        clean_papers_df.show(20)
         clean_papers_df=posTagging(clean_papers_df)
         diseases=analyze_papers(clean_papers_df)
         clean_diseases=clean_diseases_list(diseases)
@@ -484,9 +485,14 @@ def main():
         correct_disease_list=create_diseases_list(ass_df)
         ass_df.show(20,False)
         (final_result,perc)=evaluate_result(clean_diseases,correct_disease_list)
-        print("\n \n DELLE MALATTIE IDENTIFICATE SOLO IL %.2f %% SONO RISULTATE CORRETTE: \n" %(perc))
+        print("\n \n DELLE MALATTIE IDENTIFICATE SOLO IL %.2f %% SONO RISULTATE CORRETTE:" %(perc))
         print_list(final_result)
         show_word_cloud(final_result,gene_df,1)
         exit(0)
 
 main()
+
+t="Scotland, famous for its whisky, its wool, its kilts, and many other fine things, covers about a third of the territory of Great Britain. Britain has a population of about 64 million inhabitants — yet less than ten per cent of them now live in Scotland, about 5.3 million people. And most of those 5.3 million people live in or near three urban centres, Glasgow, Edinburgh, and Dundee.In the Highlands, which cover most of Scotland, the population is very thin. In many places — if there is actually a road — you can drive for over 30 kilometres without seeing any human habitation, except perhaps a solitary croft, a small farm. Yet here and there, there are small towns; most of them are beside the sea. They have their inhabitants and their economic activities, their children and their teenagers. This  document from Linguapress looks at life in the Highlands, focusing particularly on the town of Fort William. Indeed, a large part of this Focus was written with the help of staff and stude"
+
+s=sent_tokenize(t)
+t=word_tokenize(s)
