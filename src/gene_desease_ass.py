@@ -166,6 +166,8 @@ dati di tipo DataFrame.
 """
 def create_spark_dataframe(papers):
     df_papers=spark.createDataFrame(papers,['Title','Abstract'])
+    df_papers = df_papers.withColumn("Title", df_papers["Title"].cast(StringType()))
+    df_papers = df_papers.withColumn("Abstract", df_papers["Abstract"].cast(StringType()))
     df_papers.show(20)
     return df_papers
 
@@ -480,7 +482,7 @@ def main():
         DisGenNET_df=loadDisGenNet()
         ass_df=find_association_DisGenNET(DisGenNET_df,gene_id)
         correct_disease_list=create_diseases_list(ass_df)
-        ass_df.show(20)
+        ass_df.show(20,False)
         (final_result,perc)=evaluate_result(clean_diseases,correct_disease_list)
         print("\n \n DELLE MALATTIE IDENTIFICATE SOLO IL %.2f %% SONO RISULTATE CORRETTE: \n" %(perc))
         print_list(final_result)
