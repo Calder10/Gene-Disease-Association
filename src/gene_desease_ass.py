@@ -26,6 +26,7 @@ from nltk import pos_tag
 from textblob import TextBlob
 import scispacy
 import spacy
+from spacy import displacy
 from fuzzywuzzy import fuzz
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
@@ -54,8 +55,10 @@ def find_papers(gene_id):
         return papers_list
 
     print("Estrazione degli articoli in corso.....")
+    #c=1
     paper_id=paper_id[:200]
     for id_paper  in  paper_id:
+        #print(c)
         pubmed_entry = Entrez.efetch(db="pubmed", id=id_paper, retmode="xml")
         ris  = Entrez.read(pubmed_entry)
         try:
@@ -73,6 +76,7 @@ def find_papers(gene_id):
         else:
             a=""
         r=(title,a)
+        #c=c+1
         papers_list.append(r)
     print("Estazione articoli completata !")
     return papers_list
@@ -317,11 +321,14 @@ che vengono riconosciute come malattie.
 def apply_ner(text):
     diseases=[]
     doc=ner(text)
+    #displacy.render(doc,style="ent")
+    #print("______________________________________________________________________________________________________")
     for entity in doc.ents:
         if (entity.label_=="DISEASE" or entity.label_=="DESEASE"):
             if(len(str(entity))<=30):
                 diseases.append(str(entity))
     return diseases
+
 
 """
 Funzione che presa in input la lista delle malattie
@@ -479,6 +486,7 @@ def main():
         clean_papers_df=posTagging(clean_papers_df)
         clean_papers_df.show(20)
         diseases=analyze_papers(clean_papers_df)
+        print(diseases)
         clean_diseases=clean_diseases_list(diseases)
         print("\n \n MALATTIE TROVATE ANALIZZANDO LA LETTERATURA SCIENTIFICA:")
         print_list(clean_diseases)
@@ -493,4 +501,5 @@ def main():
         show_word_cloud(final_result,gene_df,1)
         exit(0)
 
-main()
+if __name__ == "__main__":
+    main()
