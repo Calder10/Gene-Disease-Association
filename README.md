@@ -1,2 +1,2 @@
-# Gene-Desease-Association
-Gene-Desease Association analyzing scientific literature
+# Gene-Disease-Association
+Gene-Disease Association analyzing scientific literature
