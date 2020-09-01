@@ -268,6 +268,8 @@ le parole che vegono etichettate come sostantivi in
 modo da ridurre la quantità di dati.
 """
 def posTagging(clean_papers_df):
+    #nltk.download('punkt')
+    #nltk.download('averaged_perceptron_tagger')
     l=[]
     for row in  clean_papers_df.rdd.collect():
         t=row['Title']
@@ -475,6 +477,7 @@ def main():
         clean_papers_df=clean_data(paper_df)
         clean_papers_df.show(20)
         clean_papers_df=posTagging(clean_papers_df)
+        clean_papers_df.show(20)
         diseases=analyze_papers(clean_papers_df)
         clean_diseases=clean_diseases_list(diseases)
         print("\n \n MALATTIE TROVATE ANALIZZANDO LA LETTERATURA SCIENTIFICA:")
@@ -491,8 +494,3 @@ def main():
         exit(0)
 
 main()
-
-t="Scotland, famous for its whisky, its wool, its kilts, and many other fine things, covers about a third of the territory of Great Britain. Britain has a population of about 64 million inhabitants — yet less than ten per cent of them now live in Scotland, about 5.3 million people. And most of those 5.3 million people live in or near three urban centres, Glasgow, Edinburgh, and Dundee.In the Highlands, which cover most of Scotland, the population is very thin. In many places — if there is actually a road — you can drive for over 30 kilometres without seeing any human habitation, except perhaps a solitary croft, a small farm. Yet here and there, there are small towns; most of them are beside the sea. They have their inhabitants and their economic activities, their children and their teenagers. This  document from Linguapress looks at life in the Highlands, focusing particularly on the town of Fort William. Indeed, a large part of this Focus was written with the help of staff and stude"
-
-s=sent_tokenize(t)
-t=word_tokenize(s)
