@@ -143,7 +143,7 @@ def createGeneDataFrame(gene_info):
         val=[(" ",str(gene_info['entrez_id']),str(gene_info['official_symbol']),str(gene_info['official_full_name']))]
 
     df_gene=spark.createDataFrame(val,["TaxonomyName","ID","OfficialSymbol","OfficialFullName"])
-    df_gene.show()
+    df_gene.show(1,False)
     return df_gene
 
 """
