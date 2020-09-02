@@ -353,15 +353,15 @@ def show_word_cloud(clean_diseases,gene_df,f):
     row=gene_df.rdd.collect()
     if(f==0):
         title_fig="Malattie associate al gene " + str(row[0]['OfficialSymbol']) +"(" + str(row[0]['ID'])+")"
-        path_fig=res_path+"/"+ str(row[0]['OfficialSymbol']) +"(" + str(row[0]['ID'])+")"
+        path_fig=res_path+"/"+ str(row[0]['OfficialSymbol']) +"(" + str(row[0]['ID'])+").png"
     else:
         title_fig="Malattie associate al gene " + str(row[0]['OfficialSymbol']) +"(" + str(row[0]['ID'])+")" + " filtrate"
-        path_fig=res_path+"/"+ str(row[0]['OfficialSymbol']) +"(" + str(row[0]['ID'])+")"+"_filter"
+        path_fig=res_path+"/"+ str(row[0]['OfficialSymbol']) +"(" + str(row[0]['ID'])+")"+"_filter.png"
     #plt.figure(figsize=(20,8))
     plt.title(title_fig,fontsize=15)
     plt.imshow(cloud,interpolation="bilinear")
     plt.axis('off')
-    plt.savefig(path_fig)
+    cloud.to_file(path_fig)
     plt.show()
 
 """
@@ -427,12 +427,11 @@ il contenuto.
 def print_list(l):
     c=0
     for x in l:
-        if (c!=4):
+        if (c!=2):
             print(x + "\t \t" ,end="")
             c+=1
         else:
             c=0
-            print("\n")
 
 
 """
@@ -458,11 +457,11 @@ def evaluate_result(result, correct_result):
     ris=[]
     for x in result:
         for y in correct_result:
-            # provare ratio e token_sort_ratio
-            score=fuzz.partial_ratio(x,y)
-            if(score >=75):
-                #print((x,y,score))
-                ris.append(x)
+            if x not in ris:
+                score=fuzz.token_set_ratio(x,y)
+                if(score >=80):
+                    #print((x,y,score))
+                    ris.append(x)
     matches_list = list(dict.fromkeys(ris))
     num_matches=len(matches_list)
     perc=(num_matches/tot)*100
@@ -486,18 +485,19 @@ def main():
         clean_papers_df=posTagging(clean_papers_df)
         clean_papers_df.show(20)
         diseases=analyze_papers(clean_papers_df)
-        print(diseases)
         clean_diseases=clean_diseases_list(diseases)
         print("\n \n MALATTIE TROVATE ANALIZZANDO LA LETTERATURA SCIENTIFICA:")
-        print_list(clean_diseases)
+        print(*clean_diseases, sep='\t')
         show_word_cloud(clean_diseases,gene_df,0)
         DisGenNET_df=loadDisGenNet()
         ass_df=find_association_DisGenNET(DisGenNET_df,gene_id)
         ass_df.show(20,False)
         correct_disease_list=create_diseases_list(ass_df)
+        #print("LISTA DELLE MALATTIE ASSOCIATE AL GENE con ID: %s" %(gene_id))
+        #print(*correct_disease_list, sep='\t')
         (final_result,perc)=evaluate_result(clean_diseases,correct_disease_list)
         print("\n \n DELLE MALATTIE IDENTIFICATE SOLO IL %.2f %% SONO RISULTATE CORRETTE:" %(perc))
-        print_list(final_result)
+        print(*final_result, sep='\t')
         show_word_cloud(final_result,gene_df,1)
         exit(0)
 
