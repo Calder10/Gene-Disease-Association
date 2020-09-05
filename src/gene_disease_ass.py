@@ -121,7 +121,7 @@ def check_gene(gene_id):
     return (1,gene_info)
 
 """
-VEDERE SE UTILIZZARE O MENO
+VEDERE SE UTILIZZARE O MENO PER CATALOGARE GLI ARTICOLI IN BASE AL SENTIMENT
 """
 def sentiment_papers(paper_df):
     for row in paper_df.rdd.collect():
@@ -349,7 +349,7 @@ associate visualizza una WordCloud.
 """
 def show_word_cloud(clean_diseases,gene_df,f):
     text=" ".join(clean_diseases)
-    cloud=WordCloud(max_font_size=40).generate(text)
+    cloud=WordCloud(width=800, height=400,max_font_size=40).generate(text)
     row=gene_df.rdd.collect()
     if(f==0):
         title_fig="Malattie associate al gene " + str(row[0]['OfficialSymbol']) +"(" + str(row[0]['ID'])+")"
