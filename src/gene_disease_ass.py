@@ -14,7 +14,10 @@ import sys
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import *
 from pyspark.sql.functions import trim
+from pyspark.sql import Row
 from pyspark.sql.types import StringType
+from pyspark import SparkContext
+from pyspark.sql import SQLContext
 import nltk
 from Bio import Entrez
 import pandas as pd
@@ -23,24 +26,25 @@ from nltk.tokenize import word_tokenize
 from nltk.tokenize import RegexpTokenizer
 from nltk.stem import WordNetLemmatizer
 from nltk import pos_tag
-from textblob import TextBlob
 import scispacy
 import spacy
 from spacy import displacy
 from fuzzywuzzy import fuzz
 from wordcloud import WordCloud
 import matplotlib.pyplot as plt
+import pandas as pd
 ner = spacy.load("en_ner_bc5cdr_md")
 spark = SparkSession.builder.appName('gene_desease_association').getOrCreate()
 DisGenNET_path="data/all_gene_disease_associations.tsv"
-res_path="res"
+res_fig_path="res/fig"
+res_csv_path="res/csv"
 med_term_path="data/med_term.csv"
 Entrez.email="salvatorecalderaro01@community.unipa.it"
 
 """
 Funzione che dato in input il nome del gene o il suo ID effettua una query
 su Pubmed e restituisce Titolo e Abstract (se quest'ultimo è disponibile)
-dei primi 100 articoli scientifici trovati.
+dei primi 200 articoli scientifici trovati.
 """
 
 def find_papers(gene_id):
@@ -83,7 +87,7 @@ def find_papers(gene_id):
 
 """
 Funzione che controlla se l'ID di un gene esiste e in caso positvo
-stampa le informaioni inerenti: l'Id, il nome,
+restituisce le informaioni inerenti: l'Id, il nome,
 il simbolo e la tassonomia
 """
 def check_gene(gene_id):
@@ -120,18 +124,6 @@ def check_gene(gene_id):
             continue
     return (1,gene_info)
 
-"""
-VEDERE SE UTILIZZARE O MENO PER CATALOGARE GLI ARTICOLI IN BASE AL SENTIMENT
-"""
-def sentiment_papers(paper_df):
-    for row in paper_df.rdd.collect():
-        t=str(row['Title'])
-        a=str(row['Abstract'])
-        text=t + "\n" + a
-        print(text)
-        s=TextBlob(text)
-        print(s.sentiment)
-        print("******************************************************************")
 """
 Funzione che preso in input una serie di informazioni inerenti
 il gene le memorizza all'interno di un dataframe
@@ -172,7 +164,6 @@ def create_spark_dataframe(papers):
     df_papers=spark.createDataFrame(papers,['Title','Abstract'])
     df_papers = df_papers.withColumn("Title", df_papers["Title"].cast(StringType()))
     df_papers = df_papers.withColumn("Abstract", df_papers["Abstract"].cast(StringType()))
-    df_papers.show(20)
     return df_papers
 
 """
@@ -190,7 +181,7 @@ def loadDisGenNet():
 """
 Funzione che preso in input l'ID del gene estrae le associazioni
 gia note, fra quest'ultimo e le relative malattie dal dataframe
-contenente tutte le associazioni.
+in cui è stato caricato DisGenNET.
 """
 
 def find_association_DisGenNET(df,gene_id):
@@ -201,7 +192,6 @@ def find_association_DisGenNET(df,gene_id):
 Funzione dato un testo elimina punteggiatura, stopwords ed
 esegue la tokenizzazione.
 """
-
 def remove_puntuaction_stop_words(text):
     #nltk.download("stopwords")
     en_stopwords=stopwords.words('english')
@@ -213,7 +203,6 @@ def remove_puntuaction_stop_words(text):
             tokens_f.append(token)
 
     return tokens_f
-
 
 """
 Funzione che dato in input un dato testo
@@ -229,9 +218,9 @@ def execute_lemmatization(tokens):
 
 """
 Funzione che preso in input il DataFrame con i papers
-restituisce i papers con la pulizia effettuata.
+restituisce i papers dopo averne effettuato la pulitura.
 (Rimozione della punteggiatura e delle stopwords, lemmatizzaziome
-delle parole.)
+delle parole).
 """
 def clean_data(paper_df):
     stop_words = set(stopwords.words('english'))
@@ -251,7 +240,7 @@ def clean_data(paper_df):
 
 """
 Funzione che preso un testo su cui è stato già effettuato
-il POS, restituisce una lista contenente solo sostantivi
+il POS, restituisce una lista contenente solo i sostantivi
 singolari e plurali, simboli e nomi propri.
 """
 
@@ -309,7 +298,7 @@ def analyze_papers(clean_papers_df):
         ris=apply_ner(paper)
         diseases+=ris
         count+=1
-    print("Analisi completata ! Sono stati analizzati %d articoli." %(count))
+    print("Analisi completata !")
     return diseases
 
 """
@@ -349,14 +338,14 @@ associate visualizza una WordCloud.
 """
 def show_word_cloud(clean_diseases,gene_df,f):
     text=" ".join(clean_diseases)
-    cloud=WordCloud(width=800, height=400,max_font_size=40).generate(text)
+    cloud=WordCloud(max_font_size=40).generate(text)
     row=gene_df.rdd.collect()
     if(f==0):
         title_fig="Malattie associate al gene " + str(row[0]['OfficialSymbol']) +"(" + str(row[0]['ID'])+")"
-        path_fig=res_path+"/"+ str(row[0]['OfficialSymbol']) +"(" + str(row[0]['ID'])+").png"
+        path_fig=res_fig_path+"/"+ str(row[0]['OfficialSymbol']) +"(" + str(row[0]['ID'])+").png"
     else:
         title_fig="Malattie associate al gene " + str(row[0]['OfficialSymbol']) +"(" + str(row[0]['ID'])+")" + " filtrate"
-        path_fig=res_path+"/"+ str(row[0]['OfficialSymbol']) +"(" + str(row[0]['ID'])+")"+"_filter.png"
+        path_fig=res_fig_path+"/"+ str(row[0]['OfficialSymbol']) +"(" + str(row[0]['ID'])+")"+"_filter.png"
     #plt.figure(figsize=(20,8))
     plt.title(title_fig,fontsize=15)
     plt.imshow(cloud,interpolation="bilinear")
@@ -413,26 +402,11 @@ Funzione che verifica se uns data parola è presente nelle parole da rimuovere.
 Viene passata in input alla funzione filter.
 """
 def filterWord(word):
-    #word_to_remove=['infection',"disease","vaccine","heart","toxicity","stasis","shoulder","breast","drug","medicine","virus","head","inflammation","toxicity"]
     word_to_remove=upload_med_term()
     if word not in word_to_remove:
         return True
     else:
         return False
-
-"""
-Funzione che presa in input una lista ne stampa
-il contenuto.
-"""
-def print_list(l):
-    c=0
-    for x in l:
-        if (c!=2):
-            print(x + "\t \t" ,end="")
-            c+=1
-        else:
-            c=0
-
 
 """
 Funzione che carica da un file CSV contenente una serie di termini medici che
@@ -445,6 +419,20 @@ def upload_med_term():
     med_term= [ row.Name for row in row_list]
     return med_term
 
+
+"""
+Funzione che presa in input una lista di malattie, la memorizza in un dataframe
+e salva in memoria il corrispondente file CSV.
+"""
+def save_disease_toCSV(diseases,gene_df,f):
+    row_gene=gene_df.rdd.collect()
+    df = pd.DataFrame(diseases,columns =['DiseaseName'])
+
+    if(f==0):
+        filepath=res_csv_path+"/"+str(row_gene[0]['OfficialSymbol']) +"(" + str(row_gene[0]['ID'])+ ")_diseases.csv"
+    else:
+        filepath=res_csv_path+"/"+str(row_gene[0]['OfficialSymbol']) +"(" + str(row_gene[0]['ID'])+ ")_filtered_diseases.csv"
+    df.to_csv(filepath, index = False)
 
 """
 Funziona che confronta i risultati ottenuti con
@@ -480,6 +468,7 @@ def main():
         sys.exit(1)
     else:
         paper_df=create_spark_dataframe(papers_list)
+        paper_df.show(20)
         clean_papers_df=clean_data(paper_df)
         clean_papers_df.show(20)
         clean_papers_df=posTagging(clean_papers_df)
@@ -488,6 +477,7 @@ def main():
         clean_diseases=clean_diseases_list(diseases)
         print("\n \n MALATTIE TROVATE ANALIZZANDO LA LETTERATURA SCIENTIFICA:")
         print(*clean_diseases, sep='\t')
+        save_disease_toCSV(clean_diseases,gene_df,0)
         show_word_cloud(clean_diseases,gene_df,0)
         DisGenNET_df=loadDisGenNet()
         ass_df=find_association_DisGenNET(DisGenNET_df,gene_id)
@@ -498,6 +488,7 @@ def main():
         (final_result,perc)=evaluate_result(clean_diseases,correct_disease_list)
         print("\n \n DELLE MALATTIE IDENTIFICATE SOLO IL %.2f %% SONO RISULTATE CORRETTE:" %(perc))
         print(*final_result, sep='\t')
+        save_disease_toCSV(final_result,gene_df,1)
         show_word_cloud(final_result,gene_df,1)
         exit(0)
 
