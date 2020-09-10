@@ -3,8 +3,7 @@ Università degli Studi Di Palermo
 Corso di Laurea Magistrale in Informatica
 Anno Accademico 2019/2020
 Elaborazione Dati - Modulo Big Data Management
-Salvatore Calderaro 0704378
-Email: salvatorecalderaro01@community.unipa.it
+Salvatore Calderaro
 GENE-DISEASE ASSOCIATION ANALYZING SCIENTIFIC LITERATURE
 """
 
@@ -39,7 +38,7 @@ DisGenNET_path="data/all_gene_disease_associations.tsv"
 res_fig_path="res/fig"
 res_csv_path="res/csv"
 med_term_path="data/med_term.csv"
-Entrez.email="salvatorecalderaro01@community.unipa.it"
+Entrez.email="youremail@example.com"
 
 """
 Funzione che dato in input il nome del gene o il suo ID effettua una query
